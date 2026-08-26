@@ -22,14 +22,21 @@ filebeat.inputs:
     log_source: suricata
   fields_under_root: true
 
-- type: filestream
-  id: modsecurity-log
-  enabled: true
-  paths:
-    - /var/lib/docker/containers/695c05426409ea2bbcdc628985a5f167279e7ee9248c56fbcdd9a36ae920e04b/695c05426409ea2bbcdc628985a5f167279e7ee9248c56fbcdd9a36ae920e04b-json.log
-  fields:
-    log_source: modsecurity
-  fields_under_root: true
+filebeat.autodiscover:
+  providers:
+    - type: docker
+      hints.enabled: true
+      templates:
+        - condition:
+            equals:
+              docker.container.name: web-nginx
+          config:
+            - type: container
+              paths:
+                - /var/lib/docker/containers/${data.docker.container.id}/*.log
+              fields:
+                log_source: modsecurity
+              fields_under_root: true
 
   # Exclude lines. A list of regular expressions to match. It drops the lines that are
   # matching any regular expression from the list.
@@ -177,7 +184,7 @@ setup.kibana:
 # ------------------------------ Logstash Output -------------------------------
 output.logstash:
   # The Logstash hosts
-  hosts: ["localhost:5044"]
+  hosts: ["logstash:5044"]
 
   # Optional SSL. By default is off.
   # List of root certificates for HTTPS server verifications

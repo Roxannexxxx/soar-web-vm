@@ -1,0 +1,66 @@
+version: "3.8"
+
+services:
+  nginx:
+    image: owasp/modsecurity-crs:nginx
+    container_name: web-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/sites-available/default:/etc/nginx/templates/conf.d/default.conf.template:ro
+      - nginx_logs:/var/log/nginx
+    networks:
+      lan0_dmz:
+        ipv4_address: 192.168.10.10
+      lan1_web_was:
+        ipv4_address: 192.168.20.10
+    restart: unless-stopped
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.19.20
+    container_name: web-logstash
+    volumes:
+      - ./logstash/conf.d:/usr/share/logstash/pipeline:ro
+      - ./logstash/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
+      - ./logstash/data:/var/lib/logstash
+    networks:
+      lan3_mgmt:
+        ipv4_address: 192.168.40.11
+    restart: unless-stopped
+
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:8.19.20
+    container_name: web-filebeat
+    user: root
+    volumes:
+      - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - /var/log/suricata:/var/log/suricata:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    networks:
+      lan3_mgmt:
+        ipv4_address: 192.168.40.12
+    depends_on:
+      - logstash
+    restart: unless-stopped
+
+networks:
+  lan0_dmz:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 192.168.10.0/24
+  lan1_web_was:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 192.168.20.0/24
+  lan3_mgmt:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 192.168.40.0/24
+
+volumes:
+  nginx_logs:
+  
